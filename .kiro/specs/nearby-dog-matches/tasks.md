@@ -26,7 +26,7 @@ Use whichever pattern fits the work breakdown:
 ## Tasks
 
 - [ ] 1. Foundation: schema and test infrastructure
-- [ ] 1.1 Give the dog table optional location columns via a new append-only changeset
+- [x] 1.1 Give the dog table optional location columns via a new append-only changeset
   - Add two nullable coordinate columns of double precision to the dog table in a new plain-SQL Liquibase changeset with an explicit rollback that drops them
   - Register the changeset in the master changelog index; no existing changeset is edited
   - The application still starts cleanly against a migrated database (schema validation passes at startup)
