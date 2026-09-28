@@ -25,13 +25,13 @@ Use whichever pattern fits the work breakdown:
 
 ## Tasks
 
-- [ ] 1. Foundation: schema and test infrastructure
+- [x] 1. Foundation: schema and test infrastructure
 - [x] 1.1 Give the dog table optional location columns via a new append-only changeset
   - Add two nullable coordinate columns of double precision to the dog table in a new plain-SQL Liquibase changeset with an explicit rollback that drops them
   - Register the changeset in the master changelog index; no existing changeset is edited
   - The application still starts cleanly against a migrated database (schema validation passes at startup)
   - _Requirements: 1.1, 1.2, 1.6, 1.7_
-- [ ] 1.2 Add the web-test starter used by controller slice tests
+- [x] 1.2 Add the web-test starter used by controller slice tests
   - Declare the Spring Boot webmvc test starter as a test-scoped dependency in the build file; no runtime dependency changes
   - The default build still packages the application, and the test compilation picks up the web slice annotations
   - _Requirements: 2.4, 2.5_
