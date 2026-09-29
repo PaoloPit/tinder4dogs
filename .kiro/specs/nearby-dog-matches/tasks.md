@@ -36,21 +36,21 @@ Use whichever pattern fits the work breakdown:
   - The default build still packages the application, and the test compilation picks up the web slice annotations
   - _Requirements: 2.4, 2.5_
 
-- [ ] 2. Core: the dog profile carries a location
-- [ ] 2.1 (P) Store a coordinate pair as one optional unit on the dog profile
+- [x] 2. Core: the dog profile carries a location
+- [x] 2.1 (P) Store a coordinate pair as one optional unit on the dog profile
   - Model the location as a value object holding both coordinates, placed in the dog concept alongside the existing gender enumeration; the entity gains a single optional field of that type so a half-present location cannot exist
   - The value object provides value equality and no domain logic; range rules live at the API boundary, not here
   - The persisted dog round-trips its location through the entity layer against the new columns
   - _Boundary: dog model_
   - _Requirements: 1.1, 1.2, 1.6, 1.7_
-- [ ] 2.2 (P) Expose the location on profile create and read
+- [x] 2.2 (P) Expose the location on profile create and read
   - The create request accepts an optional location with both coordinates validated against the earth's coordinate ranges at the request boundary
   - The profile response includes the location when present and omits the key entirely when absent
   - Creating a dog with or without a location both succeed and the response echoes the stored state faithfully
   - _Boundary: dog HTTP surface_
   - _Depends: 1.1, 2.1_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
-- [ ] 2.3 Let an owner set or replace their dog's stored location
+- [x] 2.3 Let an owner set or replace their dog's stored location
   - A dedicated edit endpoint on the dog profile's location resource accepts a complete, validated coordinate pair
   - Setting a location on a dog that had none, and replacing an existing one, both store the new value and return the updated profile with its location present
   - An out-of-range coordinate is rejected as bad input; an unknown dog is reported as not found; clearing a location is deliberately not offered
