@@ -86,7 +86,7 @@ Key decisions: `MatchListingService` is the single owner of listing rules (new c
 |-------|------------------|-----------------|-------|
 | Backend | Kotlin 2.3, Spring Boot 4.1 (servlet MVC) | Controllers, service, DTOs | No new starters at runtime |
 | Persistence | Spring Data JPA / Hibernate 7 | `Location` embeddable on `Dog` | `ddl-auto: validate` must pass |
-| Schema | Liquibase, plain SQL changesets | 005 (columns), 006 (seed backfill) | Append-only, explicit rollbacks |
+| Schema | Liquibase, plain SQL changesets | 005-add-dog-location (columns, file `006`), 007 (seed backfill) | Append-only, explicit rollbacks |
 | Database | PostgreSQL 18 | `dog.latitude`, `dog.longitude` nullable DOUBLE PRECISION | No extensions, no CHECKs |
 | JSON | Jackson (project currently resolves the Kotlin module on the Jackson 2 path) | `@JsonInclude(NON_NULL)` on `DogResponse.location` | Annotation package works for both Jackson generations |
 | Test | JUnit 5, AssertJ, `@WebMvcTest` via `spring-boot-starter-webmvc-test` (new, test scope) | Service unit tests, controller slices | `@MockitoBean` (Boot 4 removed `@MockBean`) |
@@ -105,10 +105,10 @@ src/main/kotlin/com/ai4dev/tinder4dogs/
     └── MatchListingService.kt    [new] radius rule, distance, eligibility chain, ordering; ListingResult; NearbyMatch
 
 src/main/resources/db/changelog/
-├── db.changelog-master.yaml      [modified] appends 005 and 006
+├── db.changelog-master.yaml      [modified] appends 006 and 007
 └── changes/
-    ├── 005-add-dog-location.sql   [new] nullable latitude/longitude on dog
-    └── 006-seed-dog-locations.sql [new] coordinates for the six demo dogs
+    ├── 006-add-dog-location.sql   [new] nullable latitude/longitude on dog (changeset id `005-add-dog-location`, unchanged)
+    └── 007-seed-dog-locations.sql [new] coordinates for the six demo dogs
 
 src/test/kotlin/com/ai4dev/tinder4dogs/
 ├── dog/
@@ -146,7 +146,7 @@ Flow decisions: 400 is decided before the subject is read (input shape precedes 
 | 1.2 | Create without location → created, location omitted | DogController (DogRequest nullable, NON_NULL inclusion) | POST /api/dogs | — |
 | 1.3 | Read with location → location included | DogController (DogResponse.of) | GET /api/dogs, GET /api/dogs/{id} | — |
 | 1.4 | Read without location → location omitted | DogController (NON_NULL on DogResponse.location) | GET /api/dogs, GET /api/dogs/{id} | — |
-| 1.5 | Out-of-range coordinates on create → 400 | DogController (LocationRequest @field:Min/@field:Max, @Valid) | POST /api/dogs | — |
+| 1.5 | Out-of-range coordinates on create → 400 | DogController (LocationRequest @field:DecimalMin/@field:DecimalMax, @Valid) | POST /api/dogs | — |
 | 1.6 | Set location on a dog without one → stored, echoed | DogController, Dog, DogRepository.save | PUT /api/dogs/{id}/location | — |
 | 1.7 | Replace location → stored, echoed | DogController, Dog, DogRepository.save | PUT /api/dogs/{id}/location | — |
 | 1.8 | Out-of-range coordinates on update → 400 | DogController (same LocationRequest constraints) | PUT /api/dogs/{id}/location | — |
@@ -177,7 +177,7 @@ Flow decisions: 400 is decided before the subject is read (input shape precedes 
 | MatchListingService | match / service | Radius rule, distance, eligibility chain, ordering | 2.1–2.3, 3.1–3.3, 4.1, 4.2, 5.1–5.4 | DogRepository (P0), MatchScoreService (P0) | Service |
 | ListingResult / NearbyMatch | match / contract | Sealed service result and entry type | 3.3, 5.3, 5.4, 4.2, 4.3 | none | Service |
 | MatchController (modified) | match / HTTP | Thin listing translation; NearbyMatchResponse; pairwise untouched | 2.1, 2.4, 2.5, 3.3, 4.2, 4.3, 5.3, 5.4 | MatchListingService (P0) | API |
-| 005 / 006 changesets | storage | Nullable location columns; demo seed backfill | 1.1–1.9, 3.2 (demo) | Liquibase (external) | Batch |
+| 005 / 007 changesets | storage | Nullable location columns; demo seed backfill | 1.1–1.9, 3.2 (demo) | Liquibase (external) | Batch |
 
 ### dog — Location
 - **Intent**: one value object for the coordinate pair; the entity and the API never see a half-present location.
@@ -204,7 +204,7 @@ Flow decisions: 400 is decided before the subject is read (input shape precedes 
 | GET | /api/dogs, /api/dogs/{id} | — | DogResponse (`location` omitted when null) | 404 |
 | PUT | /api/dogs/{id}/location | LocationRequest (both coordinates, validated) | DogResponse (updated, `location` always present) | 400, 404 |
 
-- `LocationRequest(latitude: Double, longitude: Double)` with `@field:Min(-90) @field:Max(90)` and `@field:Min(-180) @field:Max(180)`; cascaded from `DogRequest` via `@field:Valid` (1.5, 1.8). Missing coordinates in a create-request location are rejected by Jackson/Kotlin non-null binding (400).
+- `LocationRequest(latitude: Double, longitude: Double)` with `@field:DecimalMin("-90.0") @field:DecimalMax("90.0")` and `@field:DecimalMin("-180.0") @field:DecimalMax("180.0")` (the Bean Validation spec calls `@Min`/`@Max` inappropriate for floating-point types because of precision loss; boundary behaviour at exactly ±90 / ±180 must be inclusive); cascaded from `DogRequest` via `@field:Valid` (1.5, 1.8). Missing coordinates in a create-request location are rejected by Jackson/Kotlin non-null binding (400).
 - `DogResponse.location: LocationResponse?` annotated for NON_NULL inclusion — absent location produces no key in the JSON body (1.2, 1.4).
 - The PUT handler loads the dog (`404` when absent — 1.9), assigns the new location, saves, and returns the mapped response. Setting and replacing are the same operation, which is what makes 1.6 and 1.7 both true. Clearing is not offered.
 - All mapping goes through the existing `DogResponse.of()` companion factory, extended for `location`.
@@ -272,8 +272,8 @@ data class NearbyMatch(
 - Existing rows — including the deliberately corrupt legacy row — remain valid; they simply have no location.
 
 ### Physical Migration (changesets)
-- `005-add-dog-location.sql` — `ALTER TABLE dog ADD COLUMN latitude DOUBLE PRECISION, ADD COLUMN longitude DOUBLE PRECISION`; rollback drops both; appended to `db.changelog-master.yaml`.
-- `006-seed-dog-locations.sql` — `UPDATE dog SET latitude = …, longitude = … WHERE name = …` for the six demo dogs (matching by name, as seed 003 does); rollback nulls their coordinates. Coordinates cluster around one city with at least one dog beyond the default 25 km radius so the filter is visible in the demo. The legacy row stays location-less — it keeps demonstrating 3.2 and 5.2 in every demo listing.
+- `006-add-dog-location.sql` (changeset id `005-add-dog-location`, unchanged so databases that already ran it are not re-migrated) — `ALTER TABLE dog ADD COLUMN latitude DOUBLE PRECISION, ADD COLUMN longitude DOUBLE PRECISION`; rollback drops both; appended to `db.changelog-master.yaml`.
+- `007-seed-dog-locations.sql` — `UPDATE dog SET latitude = …, longitude = … WHERE name = …` for the six demo dogs (matching by name, as seed 003 does); rollback nulls their coordinates. Coordinates cluster around one city with at least one dog beyond the default 25 km radius so the filter is visible in the demo. The legacy row stays location-less — it keeps demonstrating 3.2 and 5.2 in every demo listing.
 - Changesets 001–004 are untouched (immutability); migration runs on existing databases without downtime concerns — nullable columns, no data rewrite.
 
 ## Error Handling
@@ -323,4 +323,4 @@ The HTTP and persistence surface was untested before this feature; the slices ab
 In-memory full scan per listing request — identical cost profile to today's `bestFor`. Acceptable at the product's current scale; no caching, no indexes. Revisit trigger: dog counts where the scan is measurable; the seam for a repository push-down already exists (`MatchListingService` is the single owner, and `DogRepository` is the only data source).
 
 ## Migration Strategy
-Two append-only changesets (005, 006) run via the existing Liquibase boot hook; no application lockstep is required — nullable columns are invisible to the old code. Rollback is per-changeset and reversible (`DROP COLUMN` / `SET … = NULL`). Validation checkpoint: application starts against a migrated database with `ddl-auto: validate`; the startup failure mode for drift is loud and immediate.
+Two append-only changesets (005-add-dog-location in file `006`, and the seed backfill in `007`) run via the existing Liquibase boot hook; no application lockstep is required — nullable columns are invisible to the old code. Rollback is per-changeset and reversible (`DROP COLUMN` / `SET … = NULL`). Validation checkpoint: application starts against a migrated database with `ddl-auto: validate`; the startup failure mode for drift is loud and immediate.

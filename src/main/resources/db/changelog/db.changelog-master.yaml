@@ -19,5 +19,5 @@ databaseChangeLog:
       file: db/changelog/changes/004-legacy-dog-row.sql
       relativeToChangelogFile: false
   - include:
-      file: db/changelog/changes/005-add-dog-location.sql
+      file: db/changelog/changes/006-add-dog-location.sql
       relativeToChangelogFile: false

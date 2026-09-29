@@ -3,7 +3,7 @@
 ## Scope and Method
 Gap between `.kiro/specs/nearby-dog-matches/requirements.md` (5 requirement areas, 20 acceptance criteria) and the current codebase. Analysis done by direct inspection: all production Kotlin, the Liquibase changelog, build files, compose.yaml, mise tasks, and steering. No sub-agents were needed — the production code is 7 files.
 
-Note: requirements are generated but **not yet approved** in spec.json; this analysis may inform revisions.
+Note: at the time of this analysis requirements were generated but not yet approved in spec.json; all three phases have since been reviewed and approved (see `spec.json`), so this analysis now reflects the approved requirements.
 
 ## Current State
 
